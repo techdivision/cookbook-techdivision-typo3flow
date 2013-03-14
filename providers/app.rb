@@ -14,16 +14,22 @@
 
 action :add do
 
+  app_name = new_resource.app_name
+  app_username = new_resource.app_name.gsub('.', '')
+
   recipe_eval do
 
     #
     # Each Flow app gets its own shell user:
     #
-    app_username = new_resource.app_name.gsub('.', '')
+
+    directory "/var/www/#{app_name}" do
+    end
 
     user app_username do
       comment "Site owner user"
       shell "/bin/zsh"
+      home "/var/www/#{app_name}"
     end
 
     group "www-data" do
@@ -50,30 +56,39 @@ action :add do
       shared/Data/Logs/Exceptions
       www
     }.each do |folder|
-      directory "/var/www/#{new_resource.app_name}/#{folder}" do
+      directory "/var/www/#{app_name}/#{folder}" do
         user app_username
         group "www-data"
         mode 00775
       end
     end
 
-    link "/var/www/#{new_resource.app_name}/releases/current" do
-      to "./default"
-      not_if "test -e /var/www/#{new_resource.app_name}/releases/current"
+    template "zshrc" do
+      cookbook "typo3flow"
+      path "/var/www/#{app_name}/.zshrc"
+      source "zshrc"
+      owner app_username
+      group app_username
+      mode "0644"
     end
 
-    link "/var/www/#{new_resource.app_name}/releases/current" do
+    link "/var/www/#{app_name}/releases/current" do
+      to "./default"
+      not_if "test -e /var/www/#{app_name}/releases/current"
+    end
+
+    link "/var/www/#{app_name}/releases/current" do
       to "./vagrant"
     end
 
-    file "/var/www/#{new_resource.app_name}/releases/default/Web/index.php" do
+    file "/var/www/#{app_name}/releases/default/Web/index.php" do
       content "This application has not been released yet."
       owner app_username
       group "www-data"
       mode 00775
     end
 
-    template "/var/www/#{new_resource.app_name}/shared/Configuration/Production/Settings.yaml" do
+    template "/var/www/#{app_name}/shared/Configuration/Production/Settings.yaml" do
       cookbook "typo3flow"
       source "Settings.yaml.erb"
       variables(
@@ -86,11 +101,11 @@ action :add do
       mode 00660
     end
 
-    link "/var/www/#{new_resource.app_name}/www/index.php" do
+    link "/var/www/#{app_name}/www/index.php" do
       to "../releases/current/Web/index.php"
     end
 
-    link "/var/www/#{new_resource.app_name}/www/_Resources" do
+    link "/var/www/#{app_name}/www/_Resources" do
       to "../releases/current/Web/_Resources"
     end
 
@@ -101,19 +116,60 @@ action :add do
 
   end
 
+  #only_if {  }
+
   web_app new_resource.app_name do
+
+
     cookbook "typo3flow"
-    template "typo3flow_app_production.conf.erb"
-    server_name "mistermaks.com"
-    server_aliases ["www.mistermaks.com", "mistermaks.com.prodbox"]
-    docroot "/var/www/mistermaks.com/www"
-    rootpath "/var/www/mistermaks.com/releases/current/"
+    template "typo3flow_app.conf.erb"
+
+    server_name "#{app_name}"
+
+    if node.attribute?('vagrant')
+      server_aliases ["www.#{app_name}", "#{app_name}.prodbox"]
+    else
+      server_aliases ["www.#{app_name}"]
+    end
+
+    docroot "/var/www/#{app_name}/www"
+    rootpath "/var/www/#{app_name}/releases/current/"
+
+    if node.attribute?('vagrant')
+      flow_context "Production/Vagrant"
+    else
+      flow_context "Production"
+    end
+  end
+
+  web_app "#{app_name}-development" do
+    cookbook "typo3flow"
+    template "typo3flow_app.conf.erb"
+
+    server_name "dev.#{app_name}"
+
+    if node.attribute?('vagrant')
+      server_aliases ["#{app_name}.devbox"]
+    end
+
+    docroot "/var/www/#{app_name}/www"
+    rootpath "/var/www/#{app_name}/releases/current/"
+
+    if node.attribute?('vagrant')
+      flow_context "Development/Vagrant"
+    else
+      flow_context "Development"
+    end
   end
 
   execute "doctrine migrate" do
     command "./flow doctrine:migrate"
-    cwd "/var/www/#{new_resource.app_name}/releases/current"
-    environment ({'FLOW_CONTEXT' => 'Production'})
+    cwd "/var/www/#{app_name}/releases/current"
+    if node.attribute?('vagrant')
+      environment ({'FLOW_CONTEXT' => 'Production/Vagrant'})
+    else
+      environment ({'FLOW_CONTEXT' => 'Production'})
+    end
     action :run
   end
 

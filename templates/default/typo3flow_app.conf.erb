@@ -54,7 +54,7 @@
   ErrorLog <%= node[:apache][:log_dir] %>/<%= @params[:name] %>-error.log
   CustomLog <%= node[:apache][:log_dir] %>/<%= @params[:name] %>-access.log combined
 
-  SetEnv FLOW_CONTEXT Production
+  SetEnv FLOW_CONTEXT <%= @params[:flow_context]  %>
 
   <IfModule mod_negotiation.c>
 

@@ -1,0 +1,16 @@
+alias -g G='| grep'
+alias -g L='| less'
+
+alias l='ls -laG'
+
+rationalise-dot() {
+    if [[ $LBUFFER = *.. ]]; then
+        LBUFFER+=/..
+    else
+        LBUFFER+=.
+            fi
+}
+zle -N rationalise-dot
+bindkey . rationalise-dot
+
+export FLOW_CONTEXT="Development/Vagrant"
