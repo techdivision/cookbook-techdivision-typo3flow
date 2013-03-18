@@ -1,4 +1,4 @@
-name             'typo3flow'
+name             'robertlemke-typo3flow'
 maintainer       'Robert Lemke'
 maintainer_email 'rl@robertlemke.com'
 license          'MIT License'

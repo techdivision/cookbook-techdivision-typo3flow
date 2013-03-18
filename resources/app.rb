@@ -1,5 +1,5 @@
 #
-# Cookbook Name:: typo3flow
+# Cookbook Name:: robertlemke-typo3flow
 # Resource:: app
 # Author:: Robert Lemke <rl@robertlemke.com>
 #
