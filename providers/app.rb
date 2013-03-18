@@ -162,17 +162,6 @@ action :add do
     end
   end
 
-  execute "doctrine migrate" do
-    command "./flow doctrine:migrate"
-    cwd "/var/www/#{app_name}/releases/current"
-    if node.attribute?('vagrant')
-      environment ({'FLOW_CONTEXT' => 'Production/Vagrant'})
-    else
-      environment ({'FLOW_CONTEXT' => 'Production'})
-    end
-    action :run
-  end
-
 end
 
 action :remove do
