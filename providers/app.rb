@@ -64,7 +64,7 @@ action :add do
     end
 
     template "zshrc" do
-      cookbook "typo3flow"
+      cookbook "robertlemke-typo3flow"
       path "/var/www/#{app_name}/.zshrc"
       source "zshrc"
       owner app_username
@@ -89,7 +89,7 @@ action :add do
     end
 
     template "/var/www/#{app_name}/shared/Configuration/Production/Settings.yaml" do
-      cookbook "typo3flow"
+      cookbook "robertlemke-typo3flow"
       source "Settings.yaml.erb"
       variables(
         :database_name => "#{app_username}",
@@ -121,7 +121,7 @@ action :add do
   web_app new_resource.app_name do
 
 
-    cookbook "typo3flow"
+    cookbook "robertlemke-typo3flow"
     template "typo3flow_app.conf.erb"
 
     server_name "#{app_name}"
@@ -143,7 +143,7 @@ action :add do
   end
 
   web_app "#{app_name}-development" do
-    cookbook "typo3flow"
+    cookbook "robertlemke-typo3flow"
     template "typo3flow_app.conf.erb"
 
     server_name "dev.#{app_name}"
