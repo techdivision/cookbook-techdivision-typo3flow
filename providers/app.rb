@@ -150,6 +150,8 @@ action :add do
 
     if node.attribute?('vagrant')
       server_aliases ["#{app_name}.devbox"]
+    else
+      server_aliases []
     end
 
     docroot "/var/www/#{app_name}/www"
