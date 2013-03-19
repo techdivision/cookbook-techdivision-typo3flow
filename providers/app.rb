@@ -17,6 +17,12 @@ action :add do
   app_name = new_resource.app_name
   app_username = new_resource.app_name.gsub('.', '')
 
+  if node.attribute?('vagrant')
+    flow_production_context = "Production/Vagrant"
+  else
+    flow_production_context = "Production"
+  end
+
   recipe_eval do
 
     #
@@ -63,13 +69,16 @@ action :add do
       end
     end
 
-    template "zshrc" do
+    template "zshrc.erb" do
       cookbook "robertlemke-typo3flow"
       path "/var/www/#{app_name}/.zshrc"
       source "zshrc"
       owner app_username
       group app_username
       mode "0644"
+      variables(
+        :flow_context => flow_production_context
+      )
     end
 
     link "/var/www/#{app_name}/releases/current" do
@@ -77,8 +86,10 @@ action :add do
       not_if "test -e /var/www/#{app_name}/releases/current"
     end
 
-    link "/var/www/#{app_name}/releases/current" do
-      to "./vagrant"
+    if node.attribute?('vagrant')
+      link "/var/www/#{app_name}/releases/current" do
+        to "./vagrant"
+      end
     end
 
     file "/var/www/#{app_name}/releases/default/Web/index.php" do
@@ -135,11 +146,7 @@ action :add do
     docroot "/var/www/#{app_name}/www"
     rootpath "/var/www/#{app_name}/releases/current/"
 
-    if node.attribute?('vagrant')
-      flow_context "Production/Vagrant"
-    else
-      flow_context "Production"
-    end
+    flow_context flow_production_context
   end
 
   web_app "#{app_name}-development" do
@@ -162,6 +169,20 @@ action :add do
     else
       flow_context "Development"
     end
+  end
+
+  web_app "#{app_name}-next-production" do
+    cookbook "robertlemke-typo3flow"
+    template "typo3flow_app.conf.erb"
+
+    server_name "next.#{app_name}"
+
+    server_aliases []
+
+    docroot "/var/www/#{app_name}/www"
+    rootpath "/var/www/#{app_name}/releases/next/"
+
+    flow_context flow_production_context
   end
 
 end
