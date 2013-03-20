@@ -16,12 +16,8 @@ action :add do
 
   app_name = new_resource.app_name
   app_username = new_resource.app_name.gsub('.', '')
-
-  if node.attribute?('vagrant')
-    flow_production_context = "Production/Vagrant"
-  else
-    flow_production_context = "Production"
-  end
+  flow_production_context = node.attribute?('vagrant') ? "Production/Vagrant" : "Production"
+  flow_development_context = node.attribute?('vagrant') ? "Development/Vagrant" : "Development"
 
   recipe_eval do
 
@@ -72,7 +68,7 @@ action :add do
     template "zshrc.erb" do
       cookbook "robertlemke-typo3flow"
       path "/var/www/#{app_name}/.zshrc"
-      source "zshrc"
+      source "zshrc.erb"
       owner app_username
       group app_username
       mode "0644"
@@ -127,8 +123,6 @@ action :add do
 
   end
 
-  #only_if {  }
-
   web_app new_resource.app_name do
 
 
@@ -163,12 +157,7 @@ action :add do
 
     docroot "/var/www/#{app_name}/www"
     rootpath "/var/www/#{app_name}/releases/current/"
-
-    if node.attribute?('vagrant')
-      flow_context "Development/Vagrant"
-    else
-      flow_context "Development"
-    end
+    flow_context "#{flow_development_context}"
   end
 
   web_app "#{app_name}-next-production" do
