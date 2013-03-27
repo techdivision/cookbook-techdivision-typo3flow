@@ -65,6 +65,21 @@ action :add do
       end
     end
 
+    #
+    # Create robots.txt and humans.txt
+    #
+
+    template "/var/www/#{app_name}/www/robots.txt" do
+      cookbook "robertlemke-typo3flow"
+      source "robots.txt.erb"
+      owner app_username
+      group app_username
+      mode "0644"
+      variables(
+        :app_name => app_name
+      )
+    end
+
     template "zshrc.erb" do
       cookbook "robertlemke-typo3flow"
       path "/var/www/#{app_name}/.zshrc"
