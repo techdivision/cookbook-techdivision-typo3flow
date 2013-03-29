@@ -14,10 +14,11 @@
 
 actions :add, :remove
 
+attribute :app_name, :kind_of => String, :name_attribute => true
+attribute :cookbook_name, :kind_of => String
+attribute :rewrite_rules, :kind_of => [Array, NilClass], :default => nil
+
 def initialize(*args)
   super
   @action = :add
 end
-
-attribute :app_name, :kind_of => String, :name_attribute => true
-attribute :cookbook_name, :kind_of => String
