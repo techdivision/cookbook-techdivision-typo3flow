@@ -118,7 +118,7 @@ action :add do
     variables(
       :database_name => "#{app_username}",
       :database_user => "root",
-      :database_password => "root"
+      :database_password => "password"
     )
     owner app_username
     group "www-data"
@@ -134,7 +134,7 @@ action :add do
   end
 
   mysql_database app_username do
-    connection ({:host => "localhost", :username => 'root', :password => 'root'})
+    connection ({:host => "localhost", :username => 'root', :password => 'password'})
     action :create
   end
 
@@ -147,9 +147,9 @@ action :add do
     server_name "#{app_name}"
 
     if node.attribute?('vagrant')
-      server_aliases ["www.#{app_name}", "#{app_name}.prodbox"]
+      server_aliases ["#{app_name}.prodbox"]
     else
-      server_aliases ["www.#{app_name}"]
+      server_aliases []
     end
 
     docroot "/var/www/#{app_name}/www"
