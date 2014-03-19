@@ -98,15 +98,15 @@ action :add do
   end
 
   link "/var/www/#{app_name}/releases/current" do
+    to "./vagrant"
+    only_if "test -e /var/www/#{app_name}/releases/vagrant"
+  end
+
+  link "/var/www/#{app_name}/releases/current" do
     to "./default"
     not_if "test -e /var/www/#{app_name}/releases/current"
   end
 
-  if node.attribute?('vagrant')
-    link "/var/www/#{app_name}/releases/current" do
-      to "./vagrant"
-    end
-  end
 
   file "/var/www/#{app_name}/releases/default/Web/index.php" do
     content "<h1>#{app_name}</h1><p>This application has not been released yet.</p>"
