@@ -258,7 +258,7 @@ action :add do
   if node["vagrant"] then
     execute "Running doctrine:migrate for #{app_name}" do
       cwd "/var/www/#{app_name}/releases/vagrant"
-      command "FLOW_CONTEXT=#{flow_development_context} ./flow doctrine:migrate && touch /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
+      command "sudo -u vagrant FLOW_CONTEXT=#{flow_development_context} ./flow doctrine:migrate && touch /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
       not_if "test -e /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
     end
   end
