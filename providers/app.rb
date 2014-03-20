@@ -17,12 +17,15 @@ action :add do
   new_resource = @new_resource
 
   app_name = new_resource.app_name
-  app_username = new_resource.app_name.gsub('.', '')
+  app_username = new_resource.app_name.gsub(".", "")
+  app_contextname = app_username.capitalize
+
   database_name = new_resource.database_name
   database_username = new_resource.database_username
   database_password = new_resource.database_password
-  flow_production_context = node.attribute?('vagrant') ? "Production/Vagrant" : "Production"
-  flow_development_context = node.attribute?('vagrant') ? "Development/Vagrant" : "Development"
+
+  flow_production_context = "Production/#{app_contextname}"
+  flow_development_context = "Development/#{app_contextname}"
 
   Chef::Log.info("#{@new_resource}: adding new TYPO3 Flow application '#{app_name}' ... #{new_resource.rewrite_rules}")
 
@@ -45,8 +48,23 @@ action :add do
     append true
   end
 
+  template "zshrc.erb" do
+    cookbook "techdivision-typo3flow"
+    path "/var/www/#{app_name}/.zshrc"
+    source "zshrc.erb"
+    owner app_username
+    group app_username
+    mode "0644"
+    variables(
+      :flow_context => flow_production_context
+    )
+  end
+
+
   #
-  # Creating the directory structure for the virtual host and Surf deployments:
+  # Creating the directory structure for the virtual host and Surf deployments
+  #
+  # (btw, not using "recursive" here, because then group and mode wouldn't be applied to parent directories)
   #
 
   %w{
@@ -56,6 +74,7 @@ action :add do
     releases/default/Web/_Resources
     shared
     shared/Configuration
+    shared/Configuration/Development
     shared/Configuration/Production
     shared/Data
     shared/Data/Persistent
@@ -70,8 +89,20 @@ action :add do
     end
   end
 
+  directory "/var/www/#{app_name}/shared/Configuration/#{flow_production_context}" do
+    user app_username
+    group "www-data"
+    mode 00775
+  end
+
+  directory "/var/www/#{app_name}/shared/Configuration/#{flow_development_context}" do
+    user app_username
+    group "www-data"
+    mode 00775
+  end
+
   #
-  # Create robots.txt and humans.txt
+  # Create robots.txt
   #
 
   template "/var/www/#{app_name}/www/robots.txt" do
@@ -85,17 +116,9 @@ action :add do
     )
   end
 
-  template "zshrc.erb" do
-    cookbook "techdivision-typo3flow"
-    path "/var/www/#{app_name}/.zshrc"
-    source "zshrc.erb"
-    owner app_username
-    group app_username
-    mode "0644"
-    variables(
-      :flow_context => flow_production_context
-    )
-  end
+  #
+  # Create a reasonable default release if nothing has been released yet:
+  #
 
   link "/var/www/#{app_name}/releases/current" do
     to "./vagrant"
@@ -115,7 +138,11 @@ action :add do
     mode 00775
   end
 
-  template "/var/www/#{app_name}/shared/Configuration/Production/Settings.yaml" do
+  #
+  # Create symlinks for shared configuration and resources
+  #
+
+  template "/var/www/#{app_name}/shared/Configuration/#{flow_production_context}/Settings.yaml" do
     cookbook "techdivision-typo3flow"
     source "Settings.yaml.erb"
     variables(
@@ -128,6 +155,27 @@ action :add do
     mode 00660
   end
 
+  template "/var/www/#{app_name}/shared/Configuration/#{flow_development_context}/Settings.yaml" do
+    cookbook "techdivision-typo3flow"
+    source "Settings.yaml.erb"
+    variables(
+      :database_name => database_name,
+      :database_user => database_username,
+      :database_password => database_password
+    )
+    owner app_username
+    group "www-data"
+    mode 00660
+  end
+
+  link "/var/www/#{app_name}/releases/current/Configuration/#{flow_production_context}" do
+    to "/var/www/#{app_name}/shared/Configuration/#{flow_production_context}"
+  end
+
+  link "/var/www/#{app_name}/releases/current/Configuration/#{flow_development_context}" do
+    to "/var/www/#{app_name}/shared/Configuration/#{flow_development_context}"
+  end
+
   link "/var/www/#{app_name}/www/index.php" do
     to "../releases/current/Web/index.php"
   end
@@ -135,6 +183,10 @@ action :add do
   link "/var/www/#{app_name}/www/_Resources" do
     to "../releases/current/Web/_Resources"
   end
+
+  #
+  # Database
+  #
 
   mysql_database database_name do
     connection ({:host => "localhost", :username => "root", :password => node[:mysql][:server_root_password]})
@@ -149,6 +201,10 @@ action :add do
     action :grant
   end
 
+  #
+  # Nginx virtual host
+  #
+
   template new_resource.app_name do
     cookbook "techdivision-typo3flow"
     path "/etc/nginx/sites-available/#{app_name}"
@@ -160,7 +216,8 @@ action :add do
     variables({
       :server_name => app_name,
       :document_root => "/var/www/#{app_name}/www",
-      :application_root => "/var/www/#{app_name}/releases/current"
+      :application_root => "/var/www/#{app_name}/releases/current",
+      :flow_context => flow_production_context,
     })
 
     notifies :reload, resources(:service => "nginx")
@@ -168,6 +225,30 @@ action :add do
 
   nginx_site app_name do
     enable true
+  end
+
+  if node["vagrant"] then
+    template "#{new_resource.app_name}dev" do
+      cookbook "techdivision-typo3flow"
+      path "/etc/nginx/sites-available/#{app_name}dev"
+      source "site.erb"
+      owner "root"
+      group "root"
+      mode "0644"
+
+      variables({
+        :server_name => app_name,
+        :document_root => "/var/www/#{app_name}/www",
+        :application_root => "/var/www/#{app_name}/releases/current",
+        :flow_context => flow_development_context,
+      })
+
+      notifies :reload, resources(:service => "nginx")
+    end
+
+    nginx_site "#{app_name}dev" do
+      enable true
+    end
   end
 
 end
