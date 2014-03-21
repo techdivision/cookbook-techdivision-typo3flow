@@ -237,7 +237,7 @@ action :add do
       mode "0644"
 
       variables({
-        :server_name => app_name,
+        :server_name => "#{app_name}dev",
         :document_root => "/var/www/#{app_name}/www",
         :application_root => "/var/www/#{app_name}/releases/current",
         :flow_context => flow_development_context,
