@@ -34,6 +34,7 @@ action :add do
   #
 
   directory "/var/www/#{app_name}" do
+    mode 02775
   end
 
   user app_username do
@@ -42,7 +43,7 @@ action :add do
     home "/var/www/#{app_name}"
   end
 
-  group "www-data" do
+  group "web" do
     action :modify
     members app_username
     append true
@@ -54,12 +55,26 @@ action :add do
     source "zshrc.erb"
     owner app_username
     group app_username
-    mode "0644"
+    mode 0644
     variables(
       :flow_context => flow_production_context
     )
   end
 
+  #
+  # If we're in Vagrant mode, switch the "app_username" to "vagrant" now, because that makes life much easier
+  # for people logging into their box with user "vagrant":
+  #
+
+  if node["vagrant"] then
+    app_username = "vagrant"
+
+    group "web" do
+      action :modify
+      members "vagrant"
+      append true
+    end
+  end
 
   #
   # Creating the directory structure for the virtual host and Surf deployments
@@ -84,21 +99,21 @@ action :add do
   }.each do |folder|
     directory "/var/www/#{app_name}/#{folder}" do
       user app_username
-      group "www-data"
-      mode 00775
+      group "web"
+      mode 02775
     end
   end
 
   directory "/var/www/#{app_name}/shared/Configuration/#{flow_production_context}" do
     user app_username
-    group "www-data"
-    mode 00775
+    group "web"
+    mode 02775
   end
 
   directory "/var/www/#{app_name}/shared/Configuration/#{flow_development_context}" do
     user app_username
-    group "www-data"
-    mode 00775
+    group "web"
+    mode 02775
   end
 
   #
@@ -109,8 +124,8 @@ action :add do
     cookbook "techdivision-typo3flow"
     source "robots.txt.erb"
     owner app_username
-    group app_username
-    mode "0644"
+    group "web"
+    mode 0644
     variables(
       :app_name => app_name
     )
@@ -130,16 +145,14 @@ action :add do
     not_if "test -e /var/www/#{app_name}/releases/current"
   end
 
-
   file "/var/www/#{app_name}/releases/default/Web/index.php" do
     content "<h1>#{app_name}</h1><p>This application has not been released yet.</p>"
     owner app_username
-    group "www-data"
-    mode 00775
+    mode 0660
   end
 
   #
-  # Create symlinks for shared configuration and resources
+  # Create symlinks for shared configuration, resources and log files:
   #
 
   template "/var/www/#{app_name}/shared/Configuration/#{flow_production_context}/Settings.yaml" do
@@ -151,8 +164,8 @@ action :add do
       :database_password => database_password
     )
     owner app_username
-    group "www-data"
-    mode 00660
+    group "web"
+    mode 0660
   end
 
   template "/var/www/#{app_name}/shared/Configuration/#{flow_development_context}/Settings.yaml" do
@@ -164,8 +177,54 @@ action :add do
       :database_password => database_password
     )
     owner app_username
-    group "www-data"
-    mode 00660
+    group "web"
+    mode 0660
+  end
+
+  %w{
+    Data/Temporary
+    Data/Temporary/Development
+    Data/Temporary/Production
+  }.each do |folder|
+    directory "/var/www/#{app_name}/releases/current/#{folder}" do
+      user app_username
+      group "web"
+      mode 02775
+    end
+  end
+
+  directory "/var/www/#{app_name}/releases/current/Data/Temporary/Development/SubContext#{app_contextname}" do
+    user app_username
+    recursive true
+    mode 02775
+    group "web"
+  end
+
+  directory "/var/www/#{app_name}/releases/current/Data/Temporary/Production/SubContext#{app_contextname}" do
+    user app_username
+    recursive true
+    mode 02775
+    group "web"
+  end
+
+  directory "/var/www/#{app_name}/releases/current/Data/Logs" do
+    action :delete
+    only_if "test -d /var/www/#{app_name}/releases/current/Data/Logs"
+    not_if "test -L /var/www/#{app_name}/releases/current/Data/Logs"
+  end
+
+  link "/var/www/#{app_name}/releases/current/Data/Logs" do
+    to "/var/www/#{app_name}/shared/Data/Logs"
+  end
+
+  directory "/var/www/#{app_name}/releases/current/Data/Persistent" do
+    action :delete
+    only_if "test -d /var/www/#{app_name}/releases/current/Data/Persistent"
+    not_if "test -L /var/www/#{app_name}/releases/current/Data/Persistent"
+  end
+
+  link "/var/www/#{app_name}/releases/current/Data/Persistent" do
+    to "/var/www/#{app_name}/shared/Data/Persistent"
   end
 
   link "/var/www/#{app_name}/releases/current/Configuration/#{flow_production_context}" do
@@ -211,7 +270,7 @@ action :add do
     source "site.erb"
     owner "root"
     group "root"
-    mode "0644"
+    mode 0644
 
     variables({
       :server_name => app_name,
@@ -234,7 +293,7 @@ action :add do
       source "site.erb"
       owner "root"
       group "root"
-      mode "0644"
+      mode 0644
 
       variables({
         :server_name => "#{app_name}dev",
@@ -257,8 +316,10 @@ action :add do
 
   if node["vagrant"] then
     execute "Running doctrine:migrate for #{app_name}" do
+      user "vagrant"
+      umask 0002
       cwd "/var/www/#{app_name}/releases/vagrant"
-      command "sudo -u vagrant FLOW_CONTEXT=#{flow_development_context} ./flow doctrine:migrate && touch /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
+      command "FLOW_CONTEXT=#{flow_development_context} ./flow doctrine:migrate && touch /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
       not_if "test -e /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
     end
   end
