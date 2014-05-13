@@ -10,3 +10,7 @@ TYPO3:
         dbname: '<%= @database_name %>'
         user: '<%= @database_user %>'
         password: '<%= @database_password %>'
+<% if @base_uri != "" %>
+    http:
+      baseUri: '<%= @base_uri %>'
+<% end %>

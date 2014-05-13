@@ -23,6 +23,7 @@ action :add do
   database_name = new_resource.database_name
   database_username = new_resource.database_username
   database_password = new_resource.database_password
+  base_uri = new_resource.base_uri
 
   flow_production_context = "Production/#{app_contextname}"
   flow_development_context = "Development/#{app_contextname}"
@@ -161,7 +162,8 @@ action :add do
     variables(
       :database_name => database_name,
       :database_user => database_username,
-      :database_password => database_password
+      :database_password => database_password,
+      :base_uri => base_uri
     )
     owner app_username
     group "web"
@@ -174,7 +176,8 @@ action :add do
     variables(
       :database_name => database_name,
       :database_user => database_username,
-      :database_password => database_password
+      :database_password => database_password,
+      :base_uri => base_uri
     )
     owner app_username
     group "web"
@@ -248,12 +251,12 @@ action :add do
   #
 
   mysql_database database_name do
-    connection ({:host => "localhost", :username => "root", :password => node[:mysql][:server_root_password]})
+    connection ({:host => "localhost", :username => "root", :password => node['mysql']['server_root_password']})
     action :create
   end
 
   mysql_database_user database_username do
-    connection ({:host => 'localhost', :username => 'root', :password => node[:mysql][:server_root_password]})
+    connection ({:host => 'localhost', :username => 'root', :password => node['mysql']['server_root_password']})
     password database_password
     database_name database_name
     privileges [:all]
@@ -279,7 +282,7 @@ action :add do
       :flow_context => flow_production_context,
     })
 
-    notifies :reload, resources(:service => "nginx")
+    notifies :reload, "service[nginx]"
   end
 
   nginx_site app_name do
@@ -302,7 +305,7 @@ action :add do
         :flow_context => flow_development_context,
       })
 
-      notifies :reload, resources(:service => "nginx")
+      notifies :reload, "service[nginx]"
     end
 
     nginx_site "#{app_name}dev" do
