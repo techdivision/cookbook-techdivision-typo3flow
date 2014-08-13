@@ -23,7 +23,12 @@ action :add do
   database_name = new_resource.database_name
   database_username = new_resource.database_username
   database_password = new_resource.database_password
-  base_uri = new_resource.base_uri
+
+  base_uri_production = new_resource.base_uri_production
+  base_uri_development = new_resource.base_uri_development
+
+  behat = new_resource.behat
+  behat_database_name = "#{database_name}-behat"
 
   flow_production_context = "Production/#{app_contextname}"
   flow_development_context = "Development/#{app_contextname}"
@@ -163,7 +168,7 @@ action :add do
       :database_name => database_name,
       :database_user => database_username,
       :database_password => database_password,
-      :base_uri => base_uri
+      :base_uri => base_uri_production
     )
     owner app_username
     group "web"
@@ -177,7 +182,7 @@ action :add do
       :database_name => database_name,
       :database_user => database_username,
       :database_password => database_password,
-      :base_uri => base_uri
+      :base_uri => base_uri_development
     )
     owner app_username
     group "web"
@@ -185,6 +190,7 @@ action :add do
   end
 
   %w{
+    Data
     Data/Temporary
     Data/Temporary/Development
     Data/Temporary/Production
@@ -212,6 +218,7 @@ action :add do
 
   directory "/var/www/#{app_name}/releases/current/Data/Logs" do
     action :delete
+    recursive true
     only_if "test -d /var/www/#{app_name}/releases/current/Data/Logs"
     not_if "test -L /var/www/#{app_name}/releases/current/Data/Logs"
   end
@@ -222,6 +229,7 @@ action :add do
 
   directory "/var/www/#{app_name}/releases/current/Data/Persistent" do
     action :delete
+    recursive true
     only_if "test -d /var/www/#{app_name}/releases/current/Data/Persistent"
     not_if "test -L /var/www/#{app_name}/releases/current/Data/Persistent"
   end
@@ -246,6 +254,72 @@ action :add do
     to "../releases/current/Web/_Resources"
   end
 
+  if behat then
+
+    directory "/var/www/#{app_name}/shared/Configuration/Development/Behat" do
+      user app_username
+      group "web"
+      mode 02775
+      recursive true
+    end
+
+    template "/var/www/#{app_name}/shared/Configuration/Development/Behat/Settings.yaml" do
+      cookbook "techdivision-typo3flow"
+      source "Settings.yaml.erb"
+      variables(
+        :database_name => behat_database_name,
+        :database_user => database_username,
+        :database_password => database_password,
+      )
+      owner app_username
+      group "web"
+      mode 0660
+    end
+
+    directory "/var/www/#{app_name}/shared/Configuration/Testing/Behat" do
+      user app_username
+      group "web"
+      mode 02775
+      recursive true
+    end
+
+    template "/var/www/#{app_name}/shared/Configuration/Testing/Behat/Settings.yaml" do
+      cookbook "techdivision-typo3flow"
+      source "Settings.yaml.erb"
+      variables(
+        :database_name => behat_database_name,
+        :database_user => database_username,
+        :database_password => database_password,
+      )
+      owner app_username
+      group "web"
+      mode 0660
+    end
+
+    link "/var/www/#{app_name}/releases/current/Configuration/Development/Behat" do
+      to "/var/www/#{app_name}/shared/Configuration/Development/Behat"
+    end
+
+    link "/var/www/#{app_name}/releases/current/Configuration/Testing/Behat" do
+      to "/var/www/#{app_name}/shared/Configuration/Testing/Behat"
+    end
+
+
+    directory "/var/www/#{app_name}/releases/current/Data/Temporary/Development/SubContextBehat" do
+      user app_username
+      recursive true
+      mode 02775
+      group "web"
+    end
+    directory "/var/www/#{app_name}/releases/current/Data/Temporary/Testing/SubContextBehat" do
+      user app_username
+      recursive true
+      mode 02775
+      group "web"
+    end
+
+  end
+
   #
   # Database
   #
@@ -261,6 +335,21 @@ action :add do
     database_name database_name
     privileges [:all]
     action :grant
+  end
+
+  if behat then
+    mysql_database behat_database_name do
+      connection ({:host => "localhost", :username => "root", :password => node['mysql']['server_root_password']})
+      action :create
+    end
+
+    mysql_database_user database_username do
+      connection ({:host => 'localhost', :username => 'root', :password => node['mysql']['server_root_password']})
+      password database_password
+      database_name behat_database_name
+      privileges [:all]
+      action :grant
+    end
   end
 
   #
@@ -313,6 +402,30 @@ action :add do
     end
   end
 
+  if behat then
+    template "#{new_resource.app_name}behat" do
+      cookbook "techdivision-typo3flow"
+      path "/etc/nginx/sites-available/#{app_name}behat"
+      source "site.erb"
+      owner "root"
+      group "root"
+      mode 0644
+
+      variables({
+        :server_name => "#{app_name}behat",
+        :document_root => "/var/www/#{app_name}/www",
+        :application_root => "/var/www/#{app_name}/releases/current",
+        :flow_context => 'Development/Behat',
+      })
+
+      notifies :reload, "service[nginx]"
+    end
+
+    nginx_site "#{app_name}behat" do
+      enable true
+    end
+  end
+
   #
   # For Vagrant run doctrine:migrate if it hasn't been run already
   #
@@ -325,6 +438,17 @@ action :add do
       command "FLOW_CONTEXT=#{flow_development_context} ./flow doctrine:migrate && touch /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
       not_if "test -e /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
     end
+  end
+
+  #
+  # Finally call cache:warmup, just to be sure that everything is in place
+  #
+
+  execute "Running doctrine:migrate for #{app_name}" do
+    user "vagrant"
+    umask 0002
+    cwd "/var/www/#{app_name}/releases/vagrant"
+    command "FLOW_CONTEXT=#{flow_development_context} ./flow flow:cache:warmup"
   end
 
 end

@@ -10,7 +10,10 @@ TYPO3:
         dbname: '<%= @database_name %>'
         user: '<%= @database_user %>'
         password: '<%= @database_password %>'
-<% if @base_uri != "" %>
+        driver: 'pdo_mysql'
+        host: '127.0.0.1'
+        charset: 'utf8'
+<% if @base_uri %>
     http:
       baseUri: '<%= @base_uri %>'
 <% end %>

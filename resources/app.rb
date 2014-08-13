@@ -20,7 +20,9 @@ attribute :rewrite_rules, :kind_of => [Array, NilClass], :default => nil
 attribute :database_name, :kind_of => String
 attribute :database_username, :kind_of => String
 attribute :database_password, :kind_of => String
-attribute :base_uri, :kind_of => String, :default => ""
+attribute :base_uri_development, :kind_of => String, :default => ""
+attribute :base_uri_production, :kind_of => String, :default => ""
+attribute :behat, :kind_of => [TrueClass, FalseClass], :default => false
 
 def initialize(*args)
   super
