@@ -439,18 +439,6 @@ action :add do
       not_if "test -e /var/www/#{app_name}/shared/Configuration/#{flow_development_context}/dont_run_doctrine_migrate"
     end
   end
-
-  #
-  # Finally call cache:warmup, just to be sure that everything is in place
-  #
-
-  execute "Running doctrine:migrate for #{app_name}" do
-    user "vagrant"
-    umask 0002
-    cwd "/var/www/#{app_name}/releases/vagrant"
-    command "FLOW_CONTEXT=#{flow_development_context} ./flow flow:cache:warmup"
-  end
-
 end
 
 action :remove do
