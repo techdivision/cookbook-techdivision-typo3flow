@@ -1,0 +1,36 @@
+server {
+	listen 80;
+
+	server_name <%= @server_name %>;
+
+	location / {
+		root /var/www/html;
+		try_files $uri $uri/ @redis;
+	}
+
+	location @redis {
+		default_type    text/html;
+		set $redis_key $uri;
+		redis_pass 127.0.0.1:6379;
+		error_page 404 500 502 503 504 = @php;
+	}
+
+	location @php {
+		include fastcgi_params;
+		fastcgi_pass 127.0.0.1:9000;
+		fastcgi_index index.php;
+
+		fastcgi_param FLOW_CONTEXT <%= @flow_context %>;
+		fastcgi_param FLOW_REWRITEURLS 1;
+		fastcgi_param FLOW_ROOTPATH <%= @application_root %>;
+
+		fastcgi_split_path_info ^(.+\.php)(.*)$;
+		fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+		fastcgi_param PATH_INFO $fastcgi_path_info;
+	}
+
+	error_page   500 502 503 504  /50x.html;
+	location = /50x.html {
+		root   /usr/share/nginx/html;
+	}
+}

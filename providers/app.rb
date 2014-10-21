@@ -30,6 +30,8 @@ action :add do
   behat = new_resource.behat
   behat_database_name = "#{database_name}-behat"
 
+  redis_proxy = new_resource.redis_proxy
+
   flow_production_context = "Production/#{app_contextname}"
   flow_development_context = "Development/#{app_contextname}"
 
@@ -422,6 +424,30 @@ action :add do
     end
 
     nginx_site "#{app_name}behat" do
+      enable true
+    end
+  end
+
+  if redis_proxy then
+    template "#{new_resource.app_name}redis" do
+      cookbook "techdivision-typo3flow"
+      path "/etc/nginx/sites-available/#{app_name}redis"
+      source "site-redis.erb"
+      owner "root"
+      group "root"
+      mode 0644
+
+      variables({
+        :server_name => "#{app_name}redis",
+        :document_root => "/var/www/#{app_name}/www",
+        :application_root => "/var/www/#{app_name}/releases/current",
+        :flow_context => flow_production_context
+      })
+
+      notifies :reload, "service[nginx]"
+    end
+
+    nginx_site "#{app_name}redis" do
       enable true
     end
   end

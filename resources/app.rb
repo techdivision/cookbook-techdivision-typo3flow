@@ -23,6 +23,7 @@ attribute :database_password, :kind_of => String
 attribute :base_uri_development, :kind_of => String, :default => ""
 attribute :base_uri_production, :kind_of => String, :default => ""
 attribute :behat, :kind_of => [TrueClass, FalseClass], :default => false
+attribute :redis_proxy, :kind_of => [TrueClass, FalseClass], :default => false
 
 def initialize(*args)
   super
