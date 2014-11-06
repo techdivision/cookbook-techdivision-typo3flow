@@ -93,6 +93,9 @@ action :add do
   %w{
     releases
     releases/default
+    releases/default/Configuration
+    releases/default/Configuration/Development
+    releases/default/Configuration/Production
     releases/default/Web
     releases/default/Web/_Resources
     shared
