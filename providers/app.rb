@@ -45,10 +45,22 @@ action :add do
     mode 02775
   end
 
+  directory "/var/www/#{app_name}/home" do
+    owner app_username
+    group app_username
+    mode 00755
+  end
+
+  directory "/var/www/#{app_name}/home/.ssh" do
+    owner app_username
+    group app_username
+    mode 00755
+  end
+
   user app_username do
     comment "Site owner user"
     shell "/bin/zsh"
-    home "/var/www/#{app_name}"
+    home "/var/www/#{app_name}/home"
   end
 
   group "web" do
